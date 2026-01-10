@@ -25,7 +25,10 @@ jobs:
         run: bundle exec rspec
 
       - name: Build gem
-        run: gem build sitemap_generator-cache_adapter.gemspec
+        id: build
+        run: |
+          gem build sitemap_generator-cache_adapter.gemspec
+          echo "gem_file=$(ls *.gem)" >> $GITHUB_OUTPUT
 
       - name: Publish to RubyGems (Trusted Publishing)
         uses: rubygems/release-gem@v1
@@ -33,5 +36,5 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: '*.gem'
+          files: ${{ steps.build.outputs.gem_file }}
           generate_release_notes: true
