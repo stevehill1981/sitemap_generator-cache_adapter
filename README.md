@@ -50,7 +50,9 @@ SitemapGenerator::Sitemap.create do
 end
 ```
 
-### Serving Sitemaps
+### Serving Sitemaps (Single File)
+
+For most sites, a single sitemap file is sufficient (up to 50,000 URLs).
 
 Create a controller to serve sitemaps from the cache:
 
@@ -59,8 +61,9 @@ Create a controller to serve sitemaps from the cache:
 class SitemapsController < ApplicationController
   def show
     xml = SitemapGenerator::CacheAdapter.fetch("sitemap.xml") do
-      # This block runs on cache miss - generates and caches the sitemap
-      SitemapGenerator::Sitemap.create
+      # Load the sitemap config, which runs create and caches the result
+      load Rails.root.join("config", "sitemap.rb")
+      SitemapGenerator::Sitemap.ping_search_engines  # Optional
     end
 
     if xml.present?
@@ -78,6 +81,62 @@ Add the route:
 # config/routes.rb
 get "sitemap.xml", to: "sitemaps#show", defaults: { format: :xml }
 ```
+
+**Note**: Loading `config/sitemap.rb` executes the entire file, including the `create` block. This is how sitemap_generator is designed to work.
+
+### Serving Sitemaps (Multiple Files)
+
+For large sites with more than 50,000 URLs, sitemap_generator creates multiple files with an index:
+
+```ruby
+# config/sitemap.rb
+SitemapGenerator::Sitemap.default_host = "https://example.com"
+SitemapGenerator::Sitemap.adapter = SitemapGenerator::CacheAdapter.new
+SitemapGenerator::Sitemap.compress = false
+# Don't set create_index = false
+
+SitemapGenerator::Sitemap.create do
+  # Your URLs here - will be split across multiple files if needed
+end
+```
+
+Update the controller to serve any sitemap file:
+
+```ruby
+# app/controllers/sitemaps_controller.rb
+class SitemapsController < ApplicationController
+  def show
+    filename = if params[:id].present?
+      "sitemap#{params[:id]}.xml"
+    else
+      "sitemap.xml"
+    end
+
+    xml = SitemapGenerator::CacheAdapter.fetch(filename) do
+      load Rails.root.join("config", "sitemap.rb")
+      SitemapGenerator::Sitemap.ping_search_engines
+    end
+
+    if xml.present?
+      render xml: xml
+    else
+      head :not_found
+    end
+  end
+end
+```
+
+Update the routes:
+
+```ruby
+# config/routes.rb
+get "sitemap.xml", to: "sitemaps#show", defaults: { format: :xml }
+get "sitemap:id.xml", to: "sitemaps#show", defaults: { format: :xml }, constraints: { id: /[0-9]+/ }
+```
+
+This serves:
+- `/sitemap.xml` - The sitemap index
+- `/sitemap1.xml`, `/sitemap2.xml`, etc. - Individual sitemap files
 
 ### Configuration Options
 
