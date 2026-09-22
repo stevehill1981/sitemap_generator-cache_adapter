@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
 
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "sitemap_generator", "~> 6.0"
+  spec.add_dependency "sitemap_generator", ">= 6.0", "< 8"
 
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.0"
